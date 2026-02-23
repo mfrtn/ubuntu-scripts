@@ -6,45 +6,91 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+echo "======================================"
+echo " Ubuntu Server Initial Security Setup "
+echo "======================================"
+
+# -------------------------
+# Update System
+# -------------------------
+echo "=== Updating system packages ==="
+apt update && apt upgrade -y && apt autoremove -y
+
+# -------------------------
+# Change Root Password
+# -------------------------
 echo "=== Change ROOT password ==="
 passwd root
 
-echo "=== Create new user ==="
+# -------------------------
+# Create New User
+# -------------------------
 read -p "Enter new username: " NEWUSER
 
-# Create user without extra info prompts
 useradd -m -s /bin/bash "$NEWUSER"
 
 echo "Set password for $NEWUSER"
 passwd "$NEWUSER"
 
-echo "=== Add user to sudo group ==="
+# -------------------------
+# Add to sudo group
+# -------------------------
 usermod -aG sudo "$NEWUSER"
-
 echo "User $NEWUSER added to sudo group"
 
-echo "=== Change SSH port ==="
+# -------------------------
+# Add SSH Authorized Key
+# -------------------------
+echo "Paste SSH public key for $NEWUSER:"
+read -r SSHKEY
+
+mkdir -p /home/$NEWUSER/.ssh
+echo "$SSHKEY" > /home/$NEWUSER/.ssh/authorized_keys
+
+chmod 700 /home/$NEWUSER/.ssh
+chmod 600 /home/$NEWUSER/.ssh/authorized_keys
+chown -R $NEWUSER:$NEWUSER /home/$NEWUSER/.ssh
+
+echo "SSH key added for $NEWUSER"
+
+# -------------------------
+# Change SSH Port
+# -------------------------
 read -p "Enter new SSH port (e.g. 2222): " SSHPORT
 
-# Backup sshd_config
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 
-# Change port (uncomment if needed)
+# Change port
 sed -i "s/^#Port 22/Port $SSHPORT/" /etc/ssh/sshd_config
 sed -i "s/^Port 22/Port $SSHPORT/" /etc/ssh/sshd_config
 
-# Allow port in firewall if UFW is active
+# Disable root login
+sed -i "s/^#PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
+sed -i "s/^PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
+
+# -------------------------
+# Firewall Rule
+# -------------------------
 if command -v ufw &> /dev/null; then
     ufw allow "$SSHPORT"/tcp
     ufw reload
 fi
 
-echo "Restarting SSH..."
+# -------------------------
+# Restart SSH
+# -------------------------
 systemctl restart ssh
 
+# -------------------------
+# Final Message
+# -------------------------
 echo "======================================"
-echo "DONE!"
-echo "New SSH port: $SSHPORT"
-echo "New user: $NEWUSER (sudo enabled)"
-echo "Root password changed"
+echo " SETUP COMPLETED SUCCESSFULLY"
+echo "--------------------------------------"
+echo " New user: $NEWUSER (sudo enabled)"
+echo " SSH Port: $SSHPORT"
+echo " Root SSH login: DISABLED"
+echo " SSH Key login: ENABLED for $NEWUSER"
 echo "======================================"
+echo " IMPORTANT: Test SSH before closing session!"
+echo " ssh -p $SSHPORT $NEWUSER@SERVER_IP"
