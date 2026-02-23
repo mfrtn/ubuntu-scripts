@@ -9,8 +9,8 @@ A fully automated Bash script to secure a fresh Ubuntu server.
 - Create a new user without interactive profile questions
 - Set user password
 - Add user to sudo group
-- Add SSH public key to new user
-- Change SSH port interactively
+- Add multiple SSH public keys for the new user
+- Change SSH port with validation
 - Disable root SSH login (PermitRootLogin no)
 - Auto firewall rule for new SSH port (UFW)
 - Backup of sshd_config
