@@ -27,44 +27,59 @@ passwd root
 # -------------------------
 read -p "Enter new username: " NEWUSER
 
+# Create user without extra info prompts
 useradd -m -s /bin/bash "$NEWUSER"
 
 echo "Set password for $NEWUSER"
 passwd "$NEWUSER"
 
-# -------------------------
-# Add to sudo group
-# -------------------------
+# Add to sudo
 usermod -aG sudo "$NEWUSER"
 echo "User $NEWUSER added to sudo group"
 
 # -------------------------
-# Add SSH Authorized Key
+# Add SSH Authorized Keys (multi-line, multiple keys)
 # -------------------------
-echo "Paste SSH public key for $NEWUSER:"
-read -r SSHKEY
+echo "Paste SSH public key(s) for $NEWUSER."
+echo "When finished, press CTRL+D to end input."
 
 mkdir -p /home/$NEWUSER/.ssh
-echo "$SSHKEY" > /home/$NEWUSER/.ssh/authorized_keys
+cat >> /home/$NEWUSER/.ssh/authorized_keys
 
 chmod 700 /home/$NEWUSER/.ssh
 chmod 600 /home/$NEWUSER/.ssh/authorized_keys
 chown -R $NEWUSER:$NEWUSER /home/$NEWUSER/.ssh
 
-echo "SSH key added for $NEWUSER"
+echo "SSH key(s) added for $NEWUSER"
 
 # -------------------------
-# Change SSH Port
+# Change SSH Port with Validation
 # -------------------------
-read -p "Enter new SSH port (e.g. 2222): " SSHPORT
+while true; do
+    read -p "Enter new SSH port (1024-65535): " SSHPORT
+    # Check if input is a number
+    if ! [[ "$SSHPORT" =~ ^[0-9]+$ ]]; then
+        echo "Error: Please enter a valid number."
+        continue
+    fi
+    # Check valid port range
+    if ((SSHPORT < 1024 || SSHPORT > 65535)); then
+        echo "Error: Port must be between 1024 and 65535."
+        continue
+    fi
+    break
+done
 
+echo "Selected SSH port: $SSHPORT"
+
+# -------------------------
+# Backup SSH config
+# -------------------------
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 
-# Change port
+# Change port and disable root login
 sed -i "s/^#Port 22/Port $SSHPORT/" /etc/ssh/sshd_config
 sed -i "s/^Port 22/Port $SSHPORT/" /etc/ssh/sshd_config
-
-# Disable root login
 sed -i "s/^#PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
 sed -i "s/^PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
 
