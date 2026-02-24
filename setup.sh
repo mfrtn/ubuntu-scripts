@@ -77,11 +77,19 @@ echo "Selected SSH port: $SSHPORT"
 # -------------------------
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 
-# Change port and disable root login
-sed -i "s/^#Port 22/Port $SSHPORT/" /etc/ssh/sshd_config
-sed -i "s/^Port 22/Port $SSHPORT/" /etc/ssh/sshd_config
-sed -i "s/^#PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
-sed -i "s/^PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
+# Replace existing Port line safely, or add if missing
+if grep -q "^#*Port " /etc/ssh/sshd_config; then
+    sed -i "s/^#*Port .*/Port $SSHPORT/" /etc/ssh/sshd_config
+else
+    echo "Port $SSHPORT" >> /etc/ssh/sshd_config
+fi
+
+# Disable root login safely
+if grep -q "^#*PermitRootLogin" /etc/ssh/sshd_config; then
+    sed -i "s/^#*PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config
+else
+    echo "PermitRootLogin no" >> /etc/ssh/sshd_config
+fi
 
 # -------------------------
 # Firewall Rule
